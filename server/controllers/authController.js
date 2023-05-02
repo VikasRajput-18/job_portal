@@ -19,16 +19,51 @@ export const registerController = async (req, res, next) => {
   if (existingUser) {
     next("User already registered with this email address");
   }
-  // const hashPassword = await bcrypt.hash(password, 10);
-  const newUser = await userModel.create({
+
+  let user = await userModel.create({
     name,
     lastname,
     email,
     password,
   });
+  const token = user.createJWT();
   return res.status(200).send({
     success: true,
     message: "User created successfully",
-    user: newUser,
+    user: {
+      name: user.name,
+      lastname: user.lastname,
+      location: user.location,
+      email: user.email,
+    },
+    token,
+  });
+};
+
+export const loginController = async (req, res, next) => {
+  const { email, password } = req.body;
+  if (!email) {
+    next("email is required");
+  }
+  if (!password) {
+    next("password is required");
+  }
+
+  const userExist = await userModel.findOne({ email }).select("+password");
+  if (!userExist) {
+    next("user is not registered! please create a account ");
+  }
+  const isMatch = userExist.comparePassword(password);
+  if (!isMatch) {
+    next("password is incorrect");
+  }
+
+  const token = userExist.createJWT();
+  userExist.password = undefined;
+  return res.status(200).send({
+    success: true,
+    message: "user login successfully",
+    user: userExist,
+    token,
   });
 };
